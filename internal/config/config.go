@@ -122,6 +122,12 @@ func (*Root) unmarshal(raw *Root) error {
 		if src.Git.Credentials != nil {
 			src.Git.Credentials.value = raw.Secrets[src.Git.Credentials.Name]
 		}
+
+		for _, ds := range src.Datasources {
+			if ds.Credentials != nil {
+				ds.Credentials.value = raw.Secrets[ds.Credentials.Name]
+			}
+		}
 	}
 
 	for name, stack := range raw.Stacks {

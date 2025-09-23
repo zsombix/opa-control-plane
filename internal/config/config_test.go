@@ -11,6 +11,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+//TODO: Write test to resolve token_auth secrets
+
 func TestParseSecretResolve(t *testing.T) {
 
 	result, err := config.Parse(bytes.NewReader([]byte(`{

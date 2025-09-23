@@ -14,6 +14,8 @@ import (
 	"github.com/styrainc/opa-control-plane/internal/service"
 )
 
+//TODO: write test to cover token_auth secrets
+
 func TestUnconfiguredSecretHandling(t *testing.T) {
 
 	bs := fmt.Appendf(nil, `{

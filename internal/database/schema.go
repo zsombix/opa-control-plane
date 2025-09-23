@@ -87,14 +87,20 @@ var schema = []sqlTable{
 	createSQLTable("sources_datasources").
 		VarCharNonNullColumn("name").
 		VarCharNonNullColumn("source_name").
-		VarCharColumn("secret_name").
 		TextNonNullColumn("type").
 		TextNonNullColumn("path").
 		TextNonNullColumn("config").
 		TextNonNullColumn("transform_query").
 		PrimaryKey("source_name", "name").
-		ForeignKey("secret_name", "secrets(name)").
 		ForeignKey("source_name", "sources(name)"),
+	createSQLTable("sources_datasources_secrets").
+		VarCharNonNullColumn("source_name").
+		VarCharNonNullColumn("datasource_name").
+		VarCharNonNullColumn("secret_name").
+		TextNonNullColumn("ref_type").
+		PrimaryKey("source_name", "datasource_name", "secret_name").
+		ForeignKey("datasource_name,source_name", "sources_datasources(name,source_name)").
+		ForeignKey("secret_name", "secrets(name)"),
 	createSQLTable("principals").
 		VarCharPrimaryKeyColumn("id").
 		TextNonNullColumn("role").

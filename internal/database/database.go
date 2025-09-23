@@ -820,6 +820,11 @@ WHERE (sources_secrets.ref_type = 'git_credentials' OR sources_secrets.ref_type 
 
 		// Load datasources for each source.
 
+		type sourcedataSourceRow struct {
+			name, source_name, path, type_, configuration, transformQuery string
+			secret_name, ref_type, secret_value                           *string
+		}
+
 		rows2, err := txn.Query(`SELECT
 		sources_datasources.name,
 		sources_datasources.source_name,
@@ -827,12 +832,15 @@ WHERE (sources_secrets.ref_type = 'git_credentials' OR sources_secrets.ref_type 
 		sources_datasources.type,
 		sources_datasources.config,
 		sources_datasources.transform_query,
-	    sources_datasources.secret_name,
-	    secrets.value AS secret_value
+		secrets.name AS secret_name,
+	  sources_datasources_secrets.ref_type as secret_ref_type,
+	  secrets.value AS secret_value
 	FROM
 		sources_datasources
+	LEFT JOIN 
+		sources_datasources_secrets on sources_datasources.source_name = sources_datasources_secrets.source_name and sources_datasources.name = sources_datasources_secrets.datasource_name
 	LEFT JOIN
-		secrets ON sources_datasources.secret_name = secrets.name
+		secrets ON sources_datasources_secrets.secret_name = secrets.name		
 	`)
 		if err != nil {
 			return nil, "", err
@@ -841,32 +849,33 @@ WHERE (sources_secrets.ref_type = 'git_credentials' OR sources_secrets.ref_type 
 		defer rows2.Close()
 
 		for rows2.Next() {
-			var name, source_name, path, type_, configuration, transformQuery string
-			var secretName, secretValue sql.NullString
-			if err := rows2.Scan(&name, &source_name, &path, &type_, &configuration, &transformQuery, &secretName, &secretValue); err != nil {
+			var row sourcedataSourceRow
+			if err := rows2.Scan(&row.name, &row.source_name, &row.path, &row.type_, &row.configuration, &row.transformQuery, &row.secret_name, &row.ref_type, &row.secret_value); err != nil {
 				return nil, "", err
 			}
 
 			datasource := config.Datasource{
-				Name:           name,
-				Type:           type_,
-				Path:           path,
-				TransformQuery: transformQuery,
+				Name:           row.name,
+				Type:           row.type_,
+				Path:           row.path,
+				TransformQuery: row.transformQuery,
 			}
 
-			if err := json.Unmarshal([]byte(configuration), &datasource.Config); err != nil {
+			if err := json.Unmarshal([]byte(row.configuration), &datasource.Config); err != nil {
 				return nil, "", err
 			}
 
-			if secretName.Valid && secretValue.Valid {
-				s := config.Secret{Name: secretName.String}
-				if err := json.Unmarshal([]byte(secretValue.String), &s.Value); err != nil {
-					return nil, "", err
+			if row.ref_type != nil && *row.ref_type == "token_auth" && row.secret_name != nil {
+				s := config.Secret{Name: *row.secret_name}
+				if row.secret_value != nil {
+					if err := json.Unmarshal([]byte(*row.secret_value), &s.Value); err != nil {
+						return nil, "", err
+					}
 				}
 				datasource.Credentials = s.Ref()
 			}
 
-			src, ok := srcMap[source_name]
+			src, ok := srcMap[row.source_name]
 			if ok {
 				src.Datasources = append(src.Datasources, datasource)
 			}
@@ -1193,6 +1202,14 @@ func (d *Database) UpsertSource(ctx context.Context, principal string, source *c
 				[]string{"source_name", "name"},
 				source.Name, datasource.Name, datasource.Type, datasource.Path, string(bs), datasource.TransformQuery, secret); err != nil {
 				return err
+			}
+
+			if datasource.Credentials != nil {
+				// TODO: handle different types of credentials
+				if err := d.upsert(ctx, tx, "sources_datasources_secrets", []string{"source_name", "datasource_name", "secret_name", "ref_type"}, []string{"source_name", "datasource_name", "secret_name"},
+					source.Name, datasource.Name, datasource.Credentials.Name, "token_auth"); err != nil {
+					return err
+				}
 			}
 		}
 

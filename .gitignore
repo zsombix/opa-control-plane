@@ -13,3 +13,5 @@ data
 opactl_*
 files
 .go
+
+.env
