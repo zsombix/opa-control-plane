@@ -1194,13 +1194,9 @@ func (d *Database) UpsertSource(ctx context.Context, principal string, source *c
 				return err
 			}
 
-			var secret sql.NullString
-			if datasource.Credentials != nil {
-				secret.String, secret.Valid = datasource.Credentials.Name, true
-			}
-			if err := d.upsert(ctx, tx, "sources_datasources", []string{"source_name", "name", "type", "path", "config", "transform_query", "secret_name"},
+			if err := d.upsert(ctx, tx, "sources_datasources", []string{"source_name", "name", "type", "path", "config", "transform_query"},
 				[]string{"source_name", "name"},
-				source.Name, datasource.Name, datasource.Type, datasource.Path, string(bs), datasource.TransformQuery, secret); err != nil {
+				source.Name, datasource.Name, datasource.Type, datasource.Path, string(bs), datasource.TransformQuery); err != nil {
 				return err
 			}
 

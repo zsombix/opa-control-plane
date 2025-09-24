@@ -35,6 +35,7 @@ func (s *HttpDataSynchronizer) Execute(ctx context.Context) error {
 	}
 	defer f.Close()
 
+	// TODO: support other HTTP methods (POST as a start)
 	req, err := http.NewRequest("GET", s.url, nil)
 	if err != nil {
 		return err
